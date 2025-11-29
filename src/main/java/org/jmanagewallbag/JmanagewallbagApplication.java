@@ -1,4 +1,4 @@
-package org.test_openapi.jmanagewallbag;
+package org.jmanagewallbag;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

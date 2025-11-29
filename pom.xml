@@ -8,7 +8,7 @@
         <version>4.0.0</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>org.test_openapi</groupId>
+    <groupId>org.jmanagewallbag</groupId>
     <artifactId>jmanagewallbag</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>jmanagewallbag</name>

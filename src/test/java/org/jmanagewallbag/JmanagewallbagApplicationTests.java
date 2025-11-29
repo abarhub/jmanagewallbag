@@ -1,4 +1,4 @@
-package org.test_openapi.jmanagewallbag;
+package org.jmanagewallbag;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
