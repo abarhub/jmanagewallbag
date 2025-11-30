@@ -1,1 +1,11 @@
-spring.application.name=jmanagewallbag
+spring.application.name: jmanagewallbag
+
+app:
+  url:
+  grant_type:
+  client_id:
+  client_secret:
+  username:
+  password:
+
+
