@@ -1,5 +1,8 @@
 package org.jmanagewallbag.service;
 
+import jakarta.transaction.Transactional;
+import org.jmanagewallbag.jpa.entity.Bookmark;
+import org.jmanagewallbag.jpa.repository.BookmarkRepository;
 import org.jmanagewallbag.properties.AppProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,18 +25,22 @@ public class ExportService {
 
     private final OAuthService oAuthService;
 
-    public ExportService(AppProperties appProperties, OAuthService oAuthService) {
+    private final BookmarkRepository bookmarkRepository;
+
+    public ExportService(AppProperties appProperties, OAuthService oAuthService, BookmarkRepository bookmarkRepository) {
         this.appProperties = appProperties;
         this.oAuthService = oAuthService;
+        this.bookmarkRepository = bookmarkRepository;
     }
 
-
+    @Transactional(rollbackOn = Exception.class)
     public void export() {
 
         int no = 1;
         int nbPages = 0;
         int nbUrls = 0;
         int max=10;
+        int nbDoublons=0;
 
         List<String> urls = new ArrayList<>();
 
@@ -59,10 +66,27 @@ public class ExportService {
                     if (items.isArray() && !items.isEmpty()) {
                         for (var item : items) {
 
-                            var url = item.get("url").asString();
+                            if(item.has("url")) {
+                                var url = item.get("url").asString();
 
-                            urls.add(url);
+                                String titre=null;
+                                if(item.has("title")) {
+                                    titre=item.get("title").asString();
+                                }
 
+                                if(urls.contains(url)) {
+                                    nbDoublons++;
+                                } else {
+                                    urls.add(url);
+
+                                    Bookmark bookmark = new Bookmark();
+                                    bookmark.setUrl(url);
+                                    bookmark.setTitre(titre);
+                                    bookmarkRepository.save(bookmark);
+                                }
+
+
+                            }
                         }
                     } else {
                         break;
@@ -80,11 +104,14 @@ public class ExportService {
 
         LOGGER.info("nb pages: {}", nbPages);
         LOGGER.info("nb urls: {}", nbUrls);
+        LOGGER.info("nb urls doublons: {}", nbDoublons);
 
         LOGGER.info("nb urls lues: {}", urls.size());
 
         LOGGER.info("duree: {} ({})", Duration.between(debut, fin), new DurationFormatter(DurationFormat.Style.COMPOSITE).print(Duration.between(debut, fin), Locale.FRANCE));
 
+        var nb=bookmarkRepository.count();
+        LOGGER.info("nb bookmarks: {}", nb);
     }
 
 }
