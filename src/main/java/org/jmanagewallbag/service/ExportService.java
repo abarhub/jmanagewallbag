@@ -76,6 +76,7 @@ public class ExportService {
 
                                 if(urls.contains(url)) {
                                     nbDoublons++;
+                                    LOGGER.warn("doublon: {}", url);
                                 } else {
                                     urls.add(url);
 
