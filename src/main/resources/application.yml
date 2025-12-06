@@ -17,8 +17,12 @@ spring:
     password:
 
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
-    hibernate.ddl-auto: update
-    show-sql: true
+    hibernate.ddl-auto: none
+    #show-sql: true
+    #defer-datasource-initialization: false
 
+
+
+  liquibase:
+    change-log: classpath:/db/changelog/db.changelog-master.yaml
 
