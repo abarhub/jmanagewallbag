@@ -9,6 +9,7 @@ app:
   password:
   page-size: 100
   batch-insert-size: 10
+  fichier-pocket:
 
 
 spring:

@@ -2,6 +2,8 @@ package org.jmanagewallbag.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.nio.file.Path;
+
 @ConfigurationProperties(prefix = "app")
 public class AppProperties {
 
@@ -13,6 +15,7 @@ public class AppProperties {
     private String password;
     private int pageSize;
     private int batchInsertSize;
+    private Path fichierPocket;
 
     public String getUrl() {
         return url;
@@ -76,5 +79,13 @@ public class AppProperties {
 
     public void setBatchInsertSize(int batchInsertSize) {
         this.batchInsertSize = batchInsertSize;
+    }
+
+    public Path getFichierPocket() {
+        return fichierPocket;
+    }
+
+    public void setFichierPocket(Path fichierPocket) {
+        this.fichierPocket = fichierPocket;
     }
 }
