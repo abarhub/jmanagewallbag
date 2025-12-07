@@ -2,6 +2,10 @@ package org.jmanagewallbag.jpa.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
 
 @Entity
 public class Bookmark {
@@ -17,10 +21,18 @@ public class Bookmark {
     @Column(unique = true, length = MAX_URL, nullable = false)
     private String url;
 
-
     @Size(max = MAX_TITRE)
     @Column(length = MAX_TITRE)
     private String titre;
+
+    @CreationTimestamp
+    private LocalDateTime dateCreation;
+
+    @UpdateTimestamp
+    private LocalDateTime dateModification;
+
+    @Column
+    private boolean manuel;
 
     public Long getId() {
         return id;
@@ -44,5 +56,29 @@ public class Bookmark {
 
     public void setTitre(String titre) {
         this.titre = titre;
+    }
+
+    public LocalDateTime getDateCreation() {
+        return dateCreation;
+    }
+
+    public void setDateCreation(LocalDateTime dateCreation) {
+        this.dateCreation = dateCreation;
+    }
+
+    public LocalDateTime getDateModification() {
+        return dateModification;
+    }
+
+    public void setDateModification(LocalDateTime dateModification) {
+        this.dateModification = dateModification;
+    }
+
+    public boolean isManuel() {
+        return manuel;
+    }
+
+    public void setManuel(boolean manuel) {
+        this.manuel = manuel;
     }
 }

@@ -51,30 +51,19 @@ public class ExportService {
 
         var debut = Instant.now();
 
-        Flux<Bookmark> fluxBookmark = Flux.create(sink -> {
-            sendData(sink);
-        });
+        LOGGER.info("page size: {}", appProperties.getPageSize());
+        LOGGER.info("batch insert size: {}", appProperties.getBatchInsertSize());
+
+        Flux<Bookmark> fluxBookmark = Flux.create(this::sendData);
 
         fluxBookmark
                 .doOnNext(x -> nbUrlTotale.incrementAndGet())
                 .filter(bookmark -> StringUtils.isNotBlank(bookmark.getUrl()))
-                .buffer(10)
-                .subscribe(x -> {
-                    for (Bookmark bookmark : x) {
-                        var resultatOpt = bookmarkRepository.findByUrl(bookmark.getUrl());
+                .buffer(appProperties.getBatchInsertSize())
+                .subscribe(listBookmark -> {
 
-                        if (resultatOpt.isPresent()) {
-                            if (StringUtils.isBlank(bookmark.getTitre())) {
-                                nbModifications.incrementAndGet();
-                                Bookmark bookmark2 = resultatOpt.get();
-                                bookmark2.setTitre(bookmark.getTitre());
-                                bookmarkRepository.save(bookmark2);
-                            }
-                        } else {
-                            nbAjout.incrementAndGet();
-                            bookmarkRepository.save(bookmark);
-                        }
-                    }
+                    ajouteBookmark(listBookmark, nbAjout, nbModifications);
+
                 });
 
         var fin = Instant.now();
@@ -88,6 +77,62 @@ public class ExportService {
         LOGGER.info("nb bookmarks en base: {}", nb);
     }
 
+    private void ajouteBookmark(List<Bookmark> listBookmark, AtomicInteger nbAjout, AtomicInteger nbModifications) {
+
+        var modificationRealise = false;
+
+        // suppression des doublons d'url
+        List<Bookmark> listBookmark2 = new ArrayList<>();
+        for (Bookmark bookmark : listBookmark) {
+            if (listBookmark2.stream().noneMatch(b -> b.getUrl().equals(bookmark.getUrl()))) {
+                listBookmark2.add(bookmark);
+            }
+        }
+
+        var listeDejaPresent = bookmarkRepository.findByUrlIn(listBookmark2.stream().map(Bookmark::getUrl).toList());
+
+        List<Bookmark> listeMaj = new ArrayList<>();
+        List<Bookmark> listeMaj2 = new ArrayList<>();
+        List<Bookmark> listeMaj3 = new ArrayList<>();
+        List<Bookmark> listeAjout = new ArrayList<>();
+        for (Bookmark bookmark : listBookmark2) {
+            var bookmarkOpt = listeDejaPresent.stream()
+                    .filter(b -> b.getUrl().equals(bookmark.getUrl()))
+                    .findFirst();
+            if (bookmarkOpt.isPresent()) {
+                listeMaj.add(bookmark);
+                listeMaj2.add(bookmarkOpt.get());
+            } else {
+                listeAjout.add(bookmark);
+            }
+        }
+
+        if (!listeAjout.isEmpty()) {
+            nbAjout.addAndGet(listeMaj.size());
+            bookmarkRepository.saveAll(listeAjout);
+            modificationRealise = true;
+        }
+
+        for (int i = 0; i < listeMaj.size(); i++) {
+            var bookmark = listeMaj.get(i);
+            if (StringUtils.isNotBlank(bookmark.getTitre()) &&
+                    !bookmark.getTitre().equals(listeMaj2.get(i).getTitre())) {
+                Bookmark bookmark2 = listeMaj2.get(i);
+                bookmark2.setTitre(listeMaj.get(i).getTitre());
+                listeMaj3.add(bookmark2);
+            }
+        }
+        if (!listeMaj3.isEmpty()) {
+            nbModifications.addAndGet(listeMaj3.size());
+            bookmarkRepository.saveAll(listeMaj3);
+            modificationRealise = true;
+        }
+
+        if (modificationRealise) {
+            bookmarkRepository.flush();
+        }
+    }
+
     private void sendData(FluxSink<Bookmark> sink) {
         int no = 1;
         int nbPages;
@@ -95,11 +140,12 @@ public class ExportService {
 
         for (int i = 0; i < max; i++) {
             LOGGER.info("page {}", no + i);
-            var res = oAuthService.getEntries(no + i, 100);
+            var resOpt = oAuthService.getEntries(no + i, appProperties.getPageSize());
 
-            if (res == null || res.isEmpty()) {
+            if (resOpt.isEmpty()) {
                 break;
             }
+            var res = resOpt.get();
             if (i == 0) {
                 nbPages = res.get("pages").asInt();
                 max = nbPages;
@@ -139,103 +185,6 @@ public class ExportService {
         }
 
         sink.complete();
-    }
-
-    public void export2() {
-
-        int no = 1;
-        int nbPages = 0;
-        int nbUrls = 0;
-        int max = 1;
-        int nbDoublons = 0;
-
-        List<String> urls = new ArrayList<>();
-
-        var debut = Instant.now();
-
-        for (int i = 0; i < max; i++) {
-            LOGGER.info("page {}", no + i);
-            var res = oAuthService.getEntries(no + i, 100);
-
-            if (res == null || res.isEmpty()) {
-                break;
-            }
-            if (i == 0) {
-                nbPages = res.get("pages").asInt();
-                nbUrls = res.get("total").asInt();
-                max = nbPages;
-            }
-
-            if (res.has("_embedded")) {
-                var embedded = res.get("_embedded");
-                if (embedded.has("items")) {
-                    var items = embedded.get("items");
-                    if (items.isArray() && !items.isEmpty()) {
-                        for (var item : items) {
-
-                            if (item.has("url")) {
-                                var url = item.get("url").asString();
-
-                                String titre = null;
-                                if (item.has("title")) {
-                                    titre = item.get("title").asString();
-                                }
-
-                                if (url.length() > Bookmark.MAX_URL) {
-                                    LOGGER.warn("url too long: {}", url);
-                                    url = StringUtils.left(url, Bookmark.MAX_URL);
-                                }
-
-                                if (titre.length() > Bookmark.MAX_TITRE) {
-                                    LOGGER.warn("titre too long: {}", url);
-                                    titre = StringUtils.left(titre, Bookmark.MAX_TITRE);
-                                }
-
-                                var resultatOpt = bookmarkRepository.findByUrl(url);
-
-                                if (resultatOpt.isPresent()) {
-                                    Bookmark bookmark = resultatOpt.get();
-                                    bookmark.setTitre(titre);
-                                    bookmarkRepository.save(bookmark);
-                                } else {
-                                    Bookmark bookmark = new Bookmark();
-                                    bookmark.setUrl(url);
-                                    bookmark.setTitre(titre);
-                                    bookmarkRepository.save(bookmark);
-                                }
-
-                                if (urls.contains(url)) {
-                                    nbDoublons++;
-                                    LOGGER.warn("doublon: {}", url);
-                                }
-
-
-                            }
-                        }
-                    } else {
-                        break;
-                    }
-                } else {
-                    break;
-                }
-            } else {
-                break;
-            }
-
-        }
-
-        var fin = Instant.now();
-
-        LOGGER.info("nb pages: {}", nbPages);
-        LOGGER.info("nb urls: {}", nbUrls);
-        LOGGER.info("nb urls doublons: {}", nbDoublons);
-
-        LOGGER.info("nb urls lues: {}", urls.size());
-
-        LOGGER.info("duree: {} ({})", Duration.between(debut, fin), new DurationFormatter(DurationFormat.Style.COMPOSITE).print(Duration.between(debut, fin), Locale.FRANCE));
-
-        var nb = bookmarkRepository.count();
-        LOGGER.info("nb bookmarks: {}", nb);
     }
 
 }

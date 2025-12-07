@@ -22,3 +22,12 @@ databaseChangeLog:
               - column:
                   name: titre
                   type: varchar(2000)
+              - column:
+                  name: date_creation
+                  type: datetime
+              - column:
+                  name: date_modification
+                  type: datetime
+              - column:
+                  name: manuel
+                  type: boolean

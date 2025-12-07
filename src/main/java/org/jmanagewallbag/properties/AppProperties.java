@@ -11,6 +11,8 @@ public class AppProperties {
     private String clientSecret;
     private String username;
     private String password;
+    private int pageSize;
+    private int batchInsertSize;
 
     public String getUrl() {
         return url;
@@ -58,5 +60,21 @@ public class AppProperties {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public int getPageSize() {
+        return pageSize;
+    }
+
+    public void setPageSize(int pageSize) {
+        this.pageSize = pageSize;
+    }
+
+    public int getBatchInsertSize() {
+        return batchInsertSize;
+    }
+
+    public void setBatchInsertSize(int batchInsertSize) {
+        this.batchInsertSize = batchInsertSize;
     }
 }

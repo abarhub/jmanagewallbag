@@ -35,7 +35,7 @@ public class OAuthService {
                 .build();
     }
 
-    public JsonNode getEntries(int noPage, int nbParPage) {
+    public Optional<JsonNode> getEntries(int noPage, int nbParPage) {
 
         updateToken();
 
@@ -53,8 +53,12 @@ public class OAuthService {
                 .body(String.class);
 
         LOGGER.debug("resultat: {}", result);
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readTree(result);
+        if(result == null || result.isEmpty()) {
+            return Optional.empty();
+        } else {
+            ObjectMapper mapper = new ObjectMapper();
+            return Optional.of(mapper.readTree(result));
+        }
     }
 
     private void updateToken() {
