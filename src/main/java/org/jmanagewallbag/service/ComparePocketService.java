@@ -20,6 +20,8 @@ import java.io.StringReader;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.zip.ZipEntry;
@@ -85,6 +87,12 @@ public class ComparePocketService {
                                     String url = record.get("url");
                                     LOGGER.debug("url: {}", url);
                                     String titre = record.get("title");
+                                    String epochStr = record.get("time_added");
+                                    LocalDateTime dateCreation = null;
+                                    if (StringUtils.isNotBlank(epochStr)) {
+                                        Instant instant = Instant.ofEpochSecond(Long.parseLong(epochStr));
+                                        dateCreation = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+                                    }
 
                                     var bookmarckOpt = bookmarkPocketRepository.findByUrl(url);
                                     if (bookmarckOpt.isPresent()) {
@@ -93,6 +101,7 @@ public class ComparePocketService {
                                         BookmarkPocket bookmarkPocket = new BookmarkPocket();
                                         bookmarkPocket.setUrl(url);
                                         bookmarkPocket.setTitre(titre);
+                                        bookmarkPocket.setDateCreationPocket(dateCreation);
                                         bookmarkPocketRepository.save(bookmarkPocket);
                                     }
                                 }
