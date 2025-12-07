@@ -12,9 +12,11 @@ import org.springframework.format.datetime.standard.DurationFormatter;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
+import tools.jackson.databind.JsonNode;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -54,17 +56,11 @@ public class ExportService {
         LOGGER.info("page size: {}", appProperties.getPageSize());
         LOGGER.info("batch insert size: {}", appProperties.getBatchInsertSize());
 
-        Flux<Bookmark> fluxBookmark = Flux.create(this::sendData);
-
-        fluxBookmark
+        Flux.create(this::sendData)
                 .doOnNext(x -> nbUrlTotale.incrementAndGet())
                 .filter(bookmark -> StringUtils.isNotBlank(bookmark.getUrl()))
                 .buffer(appProperties.getBatchInsertSize())
-                .subscribe(listBookmark -> {
-
-                    ajouteBookmark(listBookmark, nbAjout, nbModifications);
-
-                });
+                .subscribe(listBookmark -> ajouteBookmark(listBookmark, nbAjout, nbModifications));
 
         var fin = Instant.now();
 
@@ -166,9 +162,27 @@ public class ExportService {
                                     titre = item.get("title").asString();
                                 }
 
+                                LocalDateTime dateCreation = null;
+                                LocalDateTime dateModification = null;
+                                if (item.has("created_at")) {
+                                    var date = getDate(item, "created_at");
+                                    dateCreation = date;
+                                }
+                                if (item.has("updated_at")) {
+                                    var date = getDate(item, "updated_at");
+                                    dateModification = date;
+                                }
+
+                                if (item.has("tag") && item.get("tag").isArray() && !item.get("tag").isEmpty()) {
+                                    var tag = item.get("tag").asString();
+                                    LOGGER.info("tag: {} ({})", tag, url);
+                                }
+
                                 Bookmark bookmark = new Bookmark();
                                 bookmark.setUrl(url);
                                 bookmark.setTitre(titre);
+                                bookmark.setDateCreationWallbag(dateCreation);
+                                bookmark.setDateModificationWallbag(dateModification);
                                 sink.next(bookmark);
                             }
                         }
@@ -185,6 +199,14 @@ public class ExportService {
         }
 
         sink.complete();
+    }
+
+    private LocalDateTime getDate(JsonNode item, String nomChamps) {
+        var s0 = item.get(nomChamps).asString();
+        var s = s0.substring(0, 19);
+        var res = LocalDateTime.parse(s);
+        LOGGER.debug("date: {} ({})", res, s0);
+        return res;
     }
 
 }

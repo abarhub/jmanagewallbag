@@ -29,5 +29,11 @@ databaseChangeLog:
                   name: date_modification
                   type: datetime
               - column:
+                  name: date_creation_wallbag
+                  type: datetime
+              - column:
+                  name: date_modification_wallbag
+                  type: datetime
+              - column:
                   name: manuel
                   type: boolean

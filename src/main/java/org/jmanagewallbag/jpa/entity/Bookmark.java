@@ -32,6 +32,12 @@ public class Bookmark {
     private LocalDateTime dateModification;
 
     @Column
+    private LocalDateTime dateCreationWallbag;
+
+    @Column
+    private LocalDateTime dateModificationWallbag;
+
+    @Column
     private boolean manuel;
 
     public Long getId() {
@@ -80,5 +86,21 @@ public class Bookmark {
 
     public void setManuel(boolean manuel) {
         this.manuel = manuel;
+    }
+
+    public LocalDateTime getDateCreationWallbag() {
+        return dateCreationWallbag;
+    }
+
+    public void setDateCreationWallbag(LocalDateTime dateCreationWallbag) {
+        this.dateCreationWallbag = dateCreationWallbag;
+    }
+
+    public LocalDateTime getDateModificationWallbag() {
+        return dateModificationWallbag;
+    }
+
+    public void setDateModificationWallbag(LocalDateTime dateModificationWallbag) {
+        this.dateModificationWallbag = dateModificationWallbag;
     }
 }
