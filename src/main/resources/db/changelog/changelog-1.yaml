@@ -18,6 +18,7 @@ databaseChangeLog:
                   type: varchar(2000)
                   constraints:
                     nullable: false
+                    unique: true
               - column:
                   name: titre
                   type: varchar(2000)
