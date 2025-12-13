@@ -3,6 +3,7 @@ package org.jmanagewallbag.properties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.nio.file.Path;
+import java.util.List;
 
 @ConfigurationProperties(prefix = "app")
 public class AppProperties {
@@ -15,7 +16,11 @@ public class AppProperties {
     private String password;
     private int pageSize;
     private int batchInsertSize;
+    private boolean exportServiceActif;
     private Path fichierPocket;
+    private boolean compareServiceActif;
+    private List<Path> importRepertoires;
+    private boolean importServiceActif;
 
     public String getUrl() {
         return url;
@@ -87,5 +92,37 @@ public class AppProperties {
 
     public void setFichierPocket(Path fichierPocket) {
         this.fichierPocket = fichierPocket;
+    }
+
+    public boolean isExportServiceActif() {
+        return exportServiceActif;
+    }
+
+    public void setExportServiceActif(boolean exportServiceActif) {
+        this.exportServiceActif = exportServiceActif;
+    }
+
+    public boolean isCompareServiceActif() {
+        return compareServiceActif;
+    }
+
+    public void setCompareServiceActif(boolean compareServiceActif) {
+        this.compareServiceActif = compareServiceActif;
+    }
+
+    public boolean isImportServiceActif() {
+        return importServiceActif;
+    }
+
+    public void setImportServiceActif(boolean importServiceActif) {
+        this.importServiceActif = importServiceActif;
+    }
+
+    public List<Path> getImportRepertoires() {
+        return importRepertoires;
+    }
+
+    public void setImportRepertoires(List<Path> importRepertoires) {
+        this.importRepertoires = importRepertoires;
     }
 }

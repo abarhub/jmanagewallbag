@@ -9,7 +9,11 @@ app:
   password:
   page-size: 100
   batch-insert-size: 10
+  export-service-actif: false
   fichier-pocket:
+  compare-service-actif: false
+  import-service-actif: false
+  importRepertoires:
 
 
 spring:
