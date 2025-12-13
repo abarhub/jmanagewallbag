@@ -21,6 +21,7 @@ public class AppProperties {
     private boolean compareServiceActif;
     private List<Path> importRepertoires;
     private boolean importServiceActif;
+    private boolean firefoxActif;
 
     public String getUrl() {
         return url;
@@ -124,5 +125,13 @@ public class AppProperties {
 
     public void setImportRepertoires(List<Path> importRepertoires) {
         this.importRepertoires = importRepertoires;
+    }
+
+    public boolean isFirefoxActif() {
+        return firefoxActif;
+    }
+
+    public void setFirefoxActif(boolean firefoxActif) {
+        this.firefoxActif = firefoxActif;
     }
 }

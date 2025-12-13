@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DurationFormat;
 import org.springframework.format.datetime.standard.DurationFormatter;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -45,6 +46,7 @@ public class ComparePocketService {
         this.bookmarkPocketRepository = bookmarkPocketRepository;
     }
 
+    @Transactional(transactionManager = "transactionManager", rollbackFor = Exception.class)
     public void compare() {
         LOGGER.info("Comparaison des bookmarks avec Pocket");
 

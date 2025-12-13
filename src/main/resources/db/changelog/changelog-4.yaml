@@ -1,0 +1,33 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: Nemo
+      changes:
+        - createTable:
+            tableName: BOOKMARK_FIREFOX
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: url
+                  type: varchar(2000)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: titre
+                  type: varchar(2000)
+              - column:
+                  name: date_creation
+                  type: datetime
+              - column:
+                  name: date_modification
+                  type: datetime
+              - column:
+                  name: date_creation_pocket
+                  type: datetime

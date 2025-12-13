@@ -10,6 +10,7 @@ import org.jmanagewallbag.properties.AppProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.io.IOException;
@@ -37,6 +38,7 @@ public class ImportTexteService {
         this.appProperties = appProperties;
     }
 
+    @Transactional(transactionManager = "transactionManager", rollbackFor = Exception.class)
     public void importFichiers() throws IOException {
         AnalyseFichierTotal analyseFichierTotal = new AnalyseFichierTotal();
 

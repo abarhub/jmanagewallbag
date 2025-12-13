@@ -1,6 +1,5 @@
 package org.jmanagewallbag.service;
 
-import jakarta.transaction.Transactional;
 import org.apache.commons.lang3.StringUtils;
 import org.jmanagewallbag.jpa.entity.Bookmark;
 import org.jmanagewallbag.jpa.repository.BookmarkRepository;
@@ -10,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DurationFormat;
 import org.springframework.format.datetime.standard.DurationFormatter;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import tools.jackson.databind.JsonNode;
@@ -39,9 +39,8 @@ public class ExportService {
         this.bookmarkRepository = bookmarkRepository;
     }
 
-    @Transactional(rollbackOn = Exception.class)
+    @Transactional(transactionManager = "transactionManager", rollbackFor = Exception.class)
     public void export() {
-
         export3();
     }
 

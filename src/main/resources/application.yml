@@ -13,7 +13,7 @@ app:
   fichier-pocket:
   compare-service-actif: false
   import-service-actif: false
-  importRepertoires:
+  import-repertoires:
 
 
 spring:
@@ -41,4 +41,5 @@ spring:
 
   liquibase:
     change-log: classpath:/db/changelog/db.changelog-master.yaml
+
 
