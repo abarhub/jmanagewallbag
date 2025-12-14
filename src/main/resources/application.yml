@@ -11,6 +11,7 @@ app:
   batch-insert-size: 10
   export-service-actif: false
   fichier-pocket:
+  batch-pocket-insert-size: 300
   compare-service-actif: false
   import-service-actif: false
   import-repertoires:

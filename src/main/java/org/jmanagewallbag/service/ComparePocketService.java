@@ -7,7 +7,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.jmanagewallbag.dto.CSVLignePocket;
 import org.jmanagewallbag.jpa.entity.BookmarkPocket;
 import org.jmanagewallbag.jpa.repository.BookmarkPocketRepository;
-import org.jmanagewallbag.jpa.repository.BookmarkRepository;
 import org.jmanagewallbag.properties.AppProperties;
 import org.jmanagewallbag.stat.StatGlobal;
 import org.jmanagewallbag.stat.StatPocket;
@@ -18,7 +17,6 @@ import org.springframework.format.annotation.DurationFormat;
 import org.springframework.format.datetime.standard.DurationFormatter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StopWatch;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
@@ -47,13 +45,10 @@ public class ComparePocketService {
 
     private final AppProperties appProperties;
 
-    private final BookmarkRepository bookmarkRepository;
-
     private final BookmarkPocketRepository bookmarkPocketRepository;
 
-    public ComparePocketService(AppProperties appProperties, BookmarkRepository bookmarkRepository, BookmarkPocketRepository bookmarkPocketRepository) {
+    public ComparePocketService(AppProperties appProperties, BookmarkPocketRepository bookmarkPocketRepository) {
         this.appProperties = appProperties;
-        this.bookmarkRepository = bookmarkRepository;
         this.bookmarkPocketRepository = bookmarkPocketRepository;
     }
 
@@ -71,18 +66,10 @@ public class ComparePocketService {
 
             LOGGER.info("fichier zip: {}", fichierZip);
 
-            Flux.create((FluxSink<String> sink) -> {
-                        lectureZip(sink, fichierZip, statPocket);
-                    }).flatMap((contenuFichier) -> {
-
-                        return lectureCSV(contenuFichier, statPocket);
-                    })
-                    .buffer(300)
-                    .subscribe(lignePockets -> {
-
-                        enregistrementBase(lignePockets, statPocket);
-
-                    });
+            Flux.create((FluxSink<String> sink) -> lectureZip(sink, fichierZip, statPocket))
+                    .flatMap((contenuFichier) -> lectureCSV(contenuFichier, statPocket))
+                    .buffer(appProperties.getBatchPocketInsertSize())
+                    .subscribe(lignePockets -> enregistrementBase(lignePockets, statPocket));
 
 
             Instant fin = Instant.now();
@@ -132,7 +119,7 @@ public class ComparePocketService {
         }
     }
 
-    private static @NonNull Flux<CSVLignePocket> lectureCSV(String contenuFichier, StatPocket statPocket) {
+    private @NonNull Flux<CSVLignePocket> lectureCSV(String contenuFichier, StatPocket statPocket) {
         String[] HEADERS = {"title", "url", "time_added", "tags", "status"};
         CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
                 .setHeader(HEADERS)
@@ -204,112 +191,5 @@ public class ComparePocketService {
         }
     }
 
-
-    @Transactional(transactionManager = "transactionManager", rollbackFor = Exception.class)
-    public void compare0(StatGlobal statGlobal) {
-        LOGGER.info("Comparaison des bookmarks avec Pocket");
-
-        StatPocket statPocket = new StatPocket();
-        statGlobal.setStatPocket(statPocket);
-
-        var fichierZip = appProperties.getFichierPocket();
-
-        if (fichierZip != null && Files.exists(fichierZip)) {
-
-            Instant debut = Instant.now();
-
-            LOGGER.info("fichier zip: {}", fichierZip);
-            try (ZipFile zipFile = new ZipFile(fichierZip.toFile())) {
-                Enumeration<? extends ZipEntry> entries = zipFile.entries();
-                while (entries.hasMoreElements()) {
-                    ZipEntry entry = entries.nextElement();
-                    // Check if entry is a directory
-                    if (!entry.isDirectory()) {
-                        LOGGER.info("entry: {}", entry.getName());
-                        if (entry.getName().endsWith(".csv")) {
-                            String contenuFichier;
-                            statPocket.setNbFichiers(statPocket.getNbFichiers() + 1);
-                            StopWatch stopWatch = new StopWatch();
-                            stopWatch.start("lecture fichier");
-                            try (InputStream inputStream = zipFile.getInputStream(entry)) {
-
-
-                                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                                IOUtils.copy(inputStream, baos);
-                                contenuFichier = baos.toString();
-                            }
-                            stopWatch.stop();
-
-                            if (StringUtils.isNotBlank(contenuFichier)) {
-                                String[] HEADERS = {"title", "url", "time_added", "tags", "status"};
-                                CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
-                                        .setHeader(HEADERS)
-                                        .setSkipHeaderRecord(true)
-                                        .get();
-
-                                StringReader in = new StringReader(contenuFichier);
-
-                                stopWatch.start("parse fichier");
-                                Iterable<CSVRecord> records = csvFormat.parse(in);
-                                stopWatch.stop();
-
-                                stopWatch.start("ajout lignes");
-                                int nbLignes = 0;
-                                for (CSVRecord record : records) {
-                                    nbLignes++;
-                                    String url = record.get("url");
-                                    LOGGER.debug("url: {}", url);
-                                    String titre = record.get("title");
-                                    String epochStr = record.get("time_added");
-                                    LocalDateTime dateCreation = null;
-                                    if (StringUtils.isNotBlank(epochStr)) {
-                                        Instant instant = Instant.ofEpochSecond(Long.parseLong(epochStr));
-                                        dateCreation = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-                                    }
-                                    statPocket.setNbUrlTotal(statPocket.getNbUrlTotal() + 1);
-
-                                    var bookmarckOpt = bookmarkPocketRepository.findByUrl(url);
-                                    if (bookmarckOpt.isPresent()) {
-                                        LOGGER.debug("bookmark existe deja: {}", url);
-                                        statPocket.setNbDejaPresent(statPocket.getNbDejaPresent() + 1);
-                                    } else {
-                                        BookmarkPocket bookmarkPocket = new BookmarkPocket();
-                                        bookmarkPocket.setUrl(url);
-                                        bookmarkPocket.setTitre(titre);
-                                        bookmarkPocket.setDateCreationPocket(dateCreation);
-                                        bookmarkPocketRepository.save(bookmarkPocket);
-                                        statPocket.setNbAjout(statPocket.getNbAjout() + 1);
-                                    }
-                                }
-                                LOGGER.info("nb lignes: {}", nbLignes);
-                                stopWatch.stop();
-
-                                stopWatch.start("flush");
-                                bookmarkPocketRepository.flush();
-                                stopWatch.stop();
-                            }
-                            LOGGER.info("stopwatch: {}", stopWatch.prettyPrint());
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.error("Erreur lors de la lecture du fichier zip", e);
-            }
-
-            Instant fin = Instant.now();
-
-            LOGGER.info("duree: {} ({})", Duration.between(debut, fin), new DurationFormatter(DurationFormat.Style.COMPOSITE).print(Duration.between(debut, fin), Locale.FRANCE));
-
-            var nb = bookmarkPocketRepository.count();
-            LOGGER.info("nb bookmarks pocket en base: {}", nb);
-
-            statPocket.setDuree(Duration.between(debut, fin));
-            statPocket.setNbBase(nb);
-
-        } else {
-            LOGGER.warn("rien à comparer");
-        }
-
-    }
 
 }

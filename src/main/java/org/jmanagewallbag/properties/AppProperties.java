@@ -18,6 +18,7 @@ public class AppProperties {
     private int batchInsertSize;
     private boolean exportServiceActif;
     private Path fichierPocket;
+    private int batchPocketInsertSize;
     private boolean compareServiceActif;
     private List<Path> importRepertoires;
     private boolean importServiceActif;
@@ -93,6 +94,14 @@ public class AppProperties {
 
     public void setFichierPocket(Path fichierPocket) {
         this.fichierPocket = fichierPocket;
+    }
+
+    public int getBatchPocketInsertSize() {
+        return batchPocketInsertSize;
+    }
+
+    public void setBatchPocketInsertSize(int batchPocketInsertSize) {
+        this.batchPocketInsertSize = batchPocketInsertSize;
     }
 
     public boolean isExportServiceActif() {
