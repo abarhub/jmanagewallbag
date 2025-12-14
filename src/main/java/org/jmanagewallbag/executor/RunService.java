@@ -12,6 +12,9 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
+
 @Service
 public class RunService implements ApplicationRunner {
 
@@ -35,6 +38,7 @@ public class RunService implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) throws Exception {
         StatGlobal statGlobal = new StatGlobal();
+        var debut = Instant.now();
         if (appProperties.isExportServiceActif()) {
             exportService.export(statGlobal);
         }
@@ -47,6 +51,8 @@ public class RunService implements ApplicationRunner {
         if (appProperties.isFirefoxActif()) {
             firefoxService.backup(statGlobal);
         }
+        var fin = Instant.now();
+        statGlobal.setDuree(Duration.between(debut, fin));
         LOGGER.info("stat global: {}", statGlobal);
     }
 }

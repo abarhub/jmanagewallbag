@@ -8,6 +8,7 @@ public class StatImportTexte {
     private int nbAjout;
     private int nbDejaPresent;
     private int nbFichierIgnore;
+    private long nbBase;
 
     public Duration getDuree() {
         return duree;
@@ -41,6 +42,14 @@ public class StatImportTexte {
         this.nbFichierIgnore = nbFichierIgnore;
     }
 
+    public long getNbBase() {
+        return nbBase;
+    }
+
+    public void setNbBase(long nbBase) {
+        this.nbBase = nbBase;
+    }
+
     @Override
     public String toString() {
         return "StatImportTexte{" +
@@ -48,6 +57,7 @@ public class StatImportTexte {
                 ", nbAjout=" + nbAjout +
                 ", nbDejaPresent=" + nbDejaPresent +
                 ", nbFichierIgnore=" + nbFichierIgnore +
+                ", nbBase=" + nbBase +
                 '}';
     }
 }

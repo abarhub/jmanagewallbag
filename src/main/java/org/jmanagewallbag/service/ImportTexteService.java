@@ -64,14 +64,17 @@ public class ImportTexteService {
 
         var fin = Instant.now();
 
-        LOGGER.info("Analyse finale: nbUrlAjoute:{}, nbUrlDejaPresent:{}, nbFichierIgnore:{}",
+        var nbElement=bookmarkTextRepository.count();
+
+        LOGGER.info("Analyse finale: nbUrlAjoute:{}, nbUrlDejaPresent:{}, nbFichierIgnore:{}, nbBase:{}",
                 analyseFichierTotal.getNbUrlAjoute(), analyseFichierTotal.getNbUrlDejaPresent(),
-                analyseFichierTotal.getNbFichierIgnore());
+                analyseFichierTotal.getNbFichierIgnore(), nbElement);
 
         statImportTexte.setDuree(Duration.between(debut, fin));
         statImportTexte.setNbAjout(analyseFichierTotal.getNbUrlAjoute());
         statImportTexte.setNbDejaPresent(analyseFichierTotal.getNbUrlDejaPresent());
         statImportTexte.setNbFichierIgnore(analyseFichierTotal.getNbFichierIgnore());
+        statImportTexte.setNbBase(nbElement);
     }
 
     private void analyseFichier(Path fichier, AnalyseFichierTotal analyseFichierTotal) {

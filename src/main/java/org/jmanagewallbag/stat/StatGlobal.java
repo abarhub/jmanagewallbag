@@ -1,5 +1,7 @@
 package org.jmanagewallbag.stat;
 
+import java.time.Duration;
+
 public class StatGlobal {
     private StatExportWallbag exportWallbag;
 
@@ -8,6 +10,8 @@ public class StatGlobal {
     private StatImportTexte importTexte;
 
     private StatFirefox firefox;
+
+    private Duration duree;
 
     public StatExportWallbag getExportWallbag() {
         return exportWallbag;
@@ -41,6 +45,14 @@ public class StatGlobal {
         this.firefox = firefox;
     }
 
+    public Duration getDuree() {
+        return duree;
+    }
+
+    public void setDuree(Duration duree) {
+        this.duree = duree;
+    }
+
     @Override
     public String toString() {
         return "StatGlobal{" +
@@ -48,6 +60,7 @@ public class StatGlobal {
                 ", statPocket=" + statPocket +
                 ", importTexte=" + importTexte +
                 ", firefox=" + firefox +
+                ", duree=" + duree +
                 '}';
     }
 }

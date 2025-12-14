@@ -71,6 +71,7 @@ public class ComparePocketService {
                         LOGGER.info("entry: {}", entry.getName());
                         if (entry.getName().endsWith(".csv")) {
                             String contenuFichier;
+                            statPocket.setNbFichiers(statPocket.getNbFichiers() + 1);
                             try (InputStream inputStream = zipFile.getInputStream(entry)) {
 
 
