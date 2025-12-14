@@ -16,6 +16,7 @@ import org.springframework.format.annotation.DurationFormat;
 import org.springframework.format.datetime.standard.DurationFormatter;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StopWatch;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -72,6 +73,8 @@ public class ComparePocketService {
                         if (entry.getName().endsWith(".csv")) {
                             String contenuFichier;
                             statPocket.setNbFichiers(statPocket.getNbFichiers() + 1);
+                            StopWatch stopWatch = new StopWatch();
+                            stopWatch.start("lecture fichier");
                             try (InputStream inputStream = zipFile.getInputStream(entry)) {
 
 
@@ -79,6 +82,7 @@ public class ComparePocketService {
                                 IOUtils.copy(inputStream, baos);
                                 contenuFichier = baos.toString();
                             }
+                            stopWatch.stop();
 
                             if (StringUtils.isNotBlank(contenuFichier)) {
                                 String[] HEADERS = {"title", "url", "time_added", "tags", "status"};
@@ -89,9 +93,14 @@ public class ComparePocketService {
 
                                 StringReader in = new StringReader(contenuFichier);
 
+                                stopWatch.start("parse fichier");
                                 Iterable<CSVRecord> records = csvFormat.parse(in);
+                                stopWatch.stop();
 
+                                stopWatch.start("ajout lignes");
+                                int nbLignes = 0;
                                 for (CSVRecord record : records) {
+                                    nbLignes++;
                                     String url = record.get("url");
                                     LOGGER.debug("url: {}", url);
                                     String titre = record.get("title");
@@ -116,7 +125,14 @@ public class ComparePocketService {
                                         statPocket.setNbAjout(statPocket.getNbAjout() + 1);
                                     }
                                 }
+                                LOGGER.info("nb lignes: {}", nbLignes);
+                                stopWatch.stop();
+
+                                stopWatch.start("flush");
+                                bookmarkPocketRepository.flush();
+                                stopWatch.stop();
                             }
+                            LOGGER.info("stopwatch: {}",stopWatch.prettyPrint());
                         }
                     }
                 }

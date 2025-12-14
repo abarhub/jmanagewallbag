@@ -53,7 +53,7 @@ public class OAuthService {
                 .body(String.class);
 
         LOGGER.debug("resultat: {}", result);
-        if(result == null || result.isEmpty()) {
+        if (result == null || result.isEmpty()) {
             return Optional.empty();
         } else {
             ObjectMapper mapper = new ObjectMapper();
@@ -78,7 +78,12 @@ public class OAuthService {
                     .retrieve()
                     .body(OAuthDto.class);
 
-            LOGGER.info("resultat token: {}", result);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.info("resultat token: {}", result);
+            } else {
+                LOGGER.info("reinitialisation du token");
+            }
+
 
             oAuthDtoCurrent = Optional.of(result);
             limit = Optional.of(Instant.now().plus(result.getExpiresIn(), ChronoUnit.SECONDS));
