@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 
 @Entity
 public class BookmarkFirefox {
@@ -32,7 +33,16 @@ public class BookmarkFirefox {
     private LocalDateTime dateModification;
 
     @Column
-    private LocalDateTime dateCreationPocket;
+    private long nbVisites;
+
+    @Column
+    private LocalDateTime dateDerniereVisite;
+
+    @Column
+    private String motsCles;
+
+    @ManyToMany
+    private Collection<TagFirefox> tags;
 
     public Long getId() {
         return id;
@@ -74,11 +84,35 @@ public class BookmarkFirefox {
         this.dateModification = dateModification;
     }
 
-    public LocalDateTime getDateCreationPocket() {
-        return dateCreationPocket;
+    public long getNbVisites() {
+        return nbVisites;
     }
 
-    public void setDateCreationPocket(LocalDateTime dateCreationPocket) {
-        this.dateCreationPocket = dateCreationPocket;
+    public void setNbVisites(long nbVisites) {
+        this.nbVisites = nbVisites;
+    }
+
+    public LocalDateTime getDateDerniereVisite() {
+        return dateDerniereVisite;
+    }
+
+    public void setDateDerniereVisite(LocalDateTime dateDerniereVisite) {
+        this.dateDerniereVisite = dateDerniereVisite;
+    }
+
+    public String getMotsCles() {
+        return motsCles;
+    }
+
+    public void setMotsCles(String motscles) {
+        this.motsCles = motscles;
+    }
+
+    public Collection<TagFirefox> getTags() {
+        return tags;
+    }
+
+    public void setTags(Collection<TagFirefox> tags) {
+        this.tags = tags;
     }
 }

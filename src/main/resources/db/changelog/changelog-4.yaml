@@ -29,5 +29,48 @@ databaseChangeLog:
                   name: date_modification
                   type: datetime
               - column:
-                  name: date_creation_pocket
+                  name: nb_visites
+                  type: number
+              - column:
+                  name: date_derniere_visite
                   type: datetime
+              - column:
+                  name: mots_cles
+                  type: varchar(2000)
+
+        - createTable:
+            tableName: TAG_FIREFOX
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: tag
+                  type: varchar(50)
+                  constraints:
+                    nullable: false
+                    unique: true
+
+        - createTable:
+            tableName: BOOKMARK_FIREFOX_TAGS
+            columns:
+              - column:
+                  name: BOOKMARK_FIREFOX_ID
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: TAGS_ID
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: BOOKMARK_FIREFOX_TAGS
+            columnNames: BOOKMARK_FIREFOX_ID, TAGS_ID
+            validate: true
+
+
