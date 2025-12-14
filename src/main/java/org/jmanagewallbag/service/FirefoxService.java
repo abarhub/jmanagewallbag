@@ -7,6 +7,8 @@ import org.jmanagewallbag.jpa.entity.TagFirefox;
 import org.jmanagewallbag.jpa.repository.BookmarkFirefoxRepository;
 import org.jmanagewallbag.jpa.repository.TagFirefoxRepository;
 import org.jmanagewallbag.properties.AppProperties;
+import org.jmanagewallbag.stat.StatFirefox;
+import org.jmanagewallbag.stat.StatGlobal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -18,6 +20,7 @@ import reactor.core.publisher.Mono;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -58,103 +61,104 @@ public class FirefoxService {
         transactionTemplateMain = new TransactionTemplate(mainTxManager);
     }
 
-    //@Transactional(transactionManager = "mainTxManager", rollbackFor = Exception.class)
-    public void backup() {
+    public void backup(StatGlobal statGlobal) {
         LOGGER.info("Backup Firefox");
+        StatFirefox statFirefox = new StatFirefox();
+        statGlobal.setFirefox(statFirefox);
 
+        var debut = Instant.now();
+
+        var liste = recupereInfosFirefox(statFirefox);
+        insereBase(liste, statFirefox);
+
+        var fin = Instant.now();
+        statFirefox.setDuree(Duration.between(debut, fin));
     }
 
-    //    @Transactional(transactionManager = "firefoxTxManager", rollbackFor = Exception.class)
-    public Flux<BookmarkFirefoxDto> recupereInfosFirefox() {
+    private Flux<BookmarkFirefoxDto> recupereInfosFirefox(StatFirefox statFirefox) {
 
-//        List<BookmarkFirefoxDto> liste = new ArrayList<>();
-        Flux<BookmarkFirefoxDto> flux;// = Flux.empty();
+        Flux<BookmarkFirefoxDto> flux;
 
-        flux = transactionTemplateFirefox.execute(status -> {
+        flux = transactionTemplateFirefox.execute(status ->
+                Flux.create((sink) -> {
 
+                    LOGGER.info("Requete Firefox");
 
-            return Flux.create((sink) -> {
+                    firefoxJdbc.query("""                        
+                                    SELECT
+                                        p.url,
+                                        (select b.title from moz_bookmarks b where b.fk=p.id and b.type=1 and b.title is not null) AS bookmark_title,
+                                        (select min(b.dateAdded) from moz_bookmarks b where b.fk=p.id and b.type=1) AS date_added,
+                                        (select max(b.lastModified) from moz_bookmarks b where b.fk=p.id and b.type=1) AS last_modified,
+                                        p.visit_count                         AS visit_count,
+                                        p.last_visit_date                     AS last_visit_date,
+                                        (select GROUP_CONCAT(tag.title, ', ') from moz_bookmarks tag, moz_bookmarks b
+                                         where b.parent=tag.id and tag.type=2 and tag.fk is null and tag.id>80
+                                           and b.fk=p.id and b.type=1) AS tags,
+                                        (select GROUP_CONCAT(k.keyword, ', ') from moz_keywords k, moz_bookmarks b
+                                         where k.id = b.keyword_id and b.fk=p.id and b.type=1) AS keywords
+                                    FROM moz_places p
+                                    where bookmark_title is not null
+                                    ORDER BY p.url, bookmark_title, date_added;
+                                    """,
+                            rs
+                                    -> {
+                                String title = rs.getString("bookmark_title");
+                                String url = rs.getString("url");
+                                var dateCreation = getDate(rs, "date_added");
+                                var dateModification = getDate(rs, "last_modified");
+                                long nbVisites = rs.getLong("visit_count");
+                                var dateDerniereVisite = getDate(rs, "last_visit_date");
+                                String motCle = rs.getString("keywords");
+                                List<String> tags = rs.getString("tags") == null ? List.of() : SPLITTER.splitToList(rs.getString("tags"));
+                                LOGGER.debug("title: {}, url: {}, date:{}, dateModif:{}, nbVisites:{}, dateDerniereVisite:{}, motCle:{}, tags: {}",
+                                        title, url, dateCreation, dateModification,
+                                        nbVisites, dateDerniereVisite, motCle, tags);
 
-                LOGGER.info("Requete Firefox");
+                                BookmarkFirefoxDto dto = new BookmarkFirefoxDto();
+                                dto.setTitle(title);
+                                dto.setUrl(url);
+                                dto.setDateCreation(dateCreation);
+                                dto.setDateModification(dateModification);
+                                dto.setNbVisites(nbVisites);
+                                dto.setDateDerniereVisite(dateDerniereVisite);
+                                dto.setMotCle(motCle);
+                                dto.setTags(tags);
 
-                firefoxJdbc.query("""                        
-                                SELECT
-                                    p.url,
-                                    (select b.title from moz_bookmarks b where b.fk=p.id and b.type=1 and b.title is not null) AS bookmark_title,
-                                    (select min(b.dateAdded) from moz_bookmarks b where b.fk=p.id and b.type=1) AS date_added,
-                                    (select max(b.lastModified) from moz_bookmarks b where b.fk=p.id and b.type=1) AS last_modified,
-                                    p.visit_count                         AS visit_count,
-                                    p.last_visit_date                     AS last_visit_date,
-                                    (select GROUP_CONCAT(tag.title, ', ') from moz_bookmarks tag, moz_bookmarks b
-                                     where b.parent=tag.id and tag.type=2 and tag.fk is null and tag.id>80
-                                       and b.fk=p.id and b.type=1) AS tags,
-                                    (select GROUP_CONCAT(k.keyword, ', ') from moz_keywords k, moz_bookmarks b
-                                     where k.id = b.keyword_id and b.fk=p.id and b.type=1) AS keywords
-                                FROM moz_places p
-                                where bookmark_title is not null
-                                ORDER BY p.url, bookmark_title, date_added;
-                                """,
-                        rs
-                                -> {
-                            String title = rs.getString("bookmark_title");
-                            String url = rs.getString("url");
-                            var dateCreation = getDate(rs, "date_added");
-                            var dateModification = getDate(rs, "last_modified");
-                            long nbVisites = rs.getLong("visit_count");
-                            var dateDerniereVisite = getDate(rs, "last_visit_date");
-                            String motCle = rs.getString("keywords");
-                            List<String> tags = rs.getString("tags") == null ? List.of() : SPLITTER.splitToList(rs.getString("tags"));
-                            LOGGER.debug("title: {}, url: {}, date:{}, dateModif:{}, nbVisites:{}, dateDerniereVisite:{}, motCle:{}, tags: {}",
-                                    title, url, dateCreation, dateModification,
-                                    nbVisites, dateDerniereVisite, motCle, tags);
+                                sink.next(dto);
 
-                            BookmarkFirefoxDto dto = new BookmarkFirefoxDto();
-                            dto.setTitle(title);
-                            dto.setUrl(url);
-                            dto.setDateCreation(dateCreation);
-                            dto.setDateModification(dateModification);
-                            dto.setNbVisites(nbVisites);
-                            dto.setDateDerniereVisite(dateDerniereVisite);
-                            dto.setMotCle(motCle);
-                            dto.setTags(tags);
-                            //liste.add(dto);
+                                statFirefox.setNbUrlTotal(statFirefox.getNbUrlTotal() + 1);
 
-                            sink.next(dto);
+                            });
 
+                    sink.complete();
 
-                        });
-
-                sink.complete();
-
-                LOGGER.info("Requete Firefox OK");
-            });
-
-
-            //return "Ref-1";
-        });
+                    LOGGER.info("Requete Firefox OK");
+                }));
 
         return flux;
     }
 
     private LocalDateTime getDate(ResultSet rs, String columnName) throws SQLException {
-        var date2 = rs.getDate("date_added");
-        Instant instant =
-                Instant.ofEpochMilli(date2.getTime() / 1000);
-        return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+        var date2 = rs.getDate(columnName);
+        if (date2 == null) {
+            return null;
+        } else {
+            Instant instant =
+                    Instant.ofEpochMilli(date2.getTime() / 1000);
+            return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+        }
     }
 
-    //    @Transactional(transactionManager = "transactionManager", rollbackFor = Exception.class)
-    public void insereBase(Flux<BookmarkFirefoxDto> flux) {
+    private void insereBase(Flux<BookmarkFirefoxDto> flux, StatFirefox statFirefox) {
 
-        //transactionTemplateFirefox.execute(status -> {
 
         LOGGER.info("insertion base");
-        //for (var obj : liste) {
         flux
                 .filter(obj -> obj != null)
                 .concatMap(obj -> Mono.fromCallable(() -> {
                     transactionTemplateMain.execute(status -> {
-                        ajouteBookmark(obj);
+                        ajouteBookmark(obj, statFirefox);
                         return null;
                     });
                     return obj;
@@ -168,10 +172,10 @@ public class FirefoxService {
 
         LOGGER.info("nb element en base: {}", nbElement);
 
-
+        statFirefox.setNbBase(nbElement);
     }
 
-    private void ajouteBookmark(BookmarkFirefoxDto obj) {
+    private void ajouteBookmark(BookmarkFirefoxDto obj, StatFirefox statFirefox) {
         var bookmarkFirefoxOpt = bookmarkFirefoxRepository.findByUrl(obj.getUrl());
         if (bookmarkFirefoxOpt.isEmpty()) {
             //LOGGER.info("ajout de l'url: {}", url);
@@ -185,9 +189,11 @@ public class FirefoxService {
             bookmarkFirefox.setMotsCles(obj.getMotCle());
             bookmarkFirefox.setTags(getTags(obj.getTags()));
             bookmarkFirefoxRepository.save(bookmarkFirefox);
-            //LOGGER.info("ajout de l'url: {} OK", url);
+            LOGGER.debug("ajout de l'url: {} OK", obj.getUrl());
+            statFirefox.setNbAjout(statFirefox.getNbAjout() + 1);
         } else {
             LOGGER.debug("url déjà en base: {}", obj.getUrl());
+            statFirefox.setNbDejaPresent(statFirefox.getNbDejaPresent() + 1);
         }
     }
 

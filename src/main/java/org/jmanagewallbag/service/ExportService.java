@@ -4,6 +4,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.jmanagewallbag.jpa.entity.Bookmark;
 import org.jmanagewallbag.jpa.repository.BookmarkRepository;
 import org.jmanagewallbag.properties.AppProperties;
+import org.jmanagewallbag.stat.StatExportWallbag;
+import org.jmanagewallbag.stat.StatGlobal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DurationFormat;
@@ -40,11 +42,14 @@ public class ExportService {
     }
 
     @Transactional(transactionManager = "transactionManager", rollbackFor = Exception.class)
-    public void export() {
-        export3();
+    public void export(StatGlobal statGlobal) {
+        export3(statGlobal);
     }
 
-    public void export3() {
+    public void export3(StatGlobal statGlobal) {
+
+        StatExportWallbag statExportWallbag = new StatExportWallbag();
+        statGlobal.setExportWallbag(statExportWallbag);
 
         AtomicInteger nbAjout = new AtomicInteger(0);
         AtomicInteger nbModifications = new AtomicInteger(0);
@@ -70,6 +75,11 @@ public class ExportService {
 
         var nb = bookmarkRepository.count();
         LOGGER.info("nb bookmarks en base: {}", nb);
+        statExportWallbag.setDuree(Duration.between(debut, fin));
+        statExportWallbag.setNbAjout(nbAjout.get());
+        statExportWallbag.setNbModification(nbModifications.get());
+        statExportWallbag.setNbTotal(nbUrlTotale.get());
+        statExportWallbag.setNbBase(nb);
     }
 
     private void ajouteBookmark(List<Bookmark> listBookmark, AtomicInteger nbAjout, AtomicInteger nbModifications) {

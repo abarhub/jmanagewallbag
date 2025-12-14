@@ -7,6 +7,8 @@ import org.jmanagewallbag.dto.AnalyseFichierTotal;
 import org.jmanagewallbag.jpa.entity.BookmarkText;
 import org.jmanagewallbag.jpa.repository.BookmarkTextRepository;
 import org.jmanagewallbag.properties.AppProperties;
+import org.jmanagewallbag.stat.StatGlobal;
+import org.jmanagewallbag.stat.StatImportTexte;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,8 @@ import org.springframework.util.CollectionUtils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Service
@@ -39,8 +43,13 @@ public class ImportTexteService {
     }
 
     @Transactional(transactionManager = "transactionManager", rollbackFor = Exception.class)
-    public void importFichiers() throws IOException {
+    public void importFichiers(StatGlobal statGlobal) throws IOException {
         AnalyseFichierTotal analyseFichierTotal = new AnalyseFichierTotal();
+
+        StatImportTexte statImportTexte = new StatImportTexte();
+        statGlobal.setImportTexte(statImportTexte);
+
+        var debut = Instant.now();
 
         if (!CollectionUtils.isEmpty(appProperties.getImportRepertoires())) {
             for (var repertoire : appProperties.getImportRepertoires()) {
@@ -53,9 +62,16 @@ public class ImportTexteService {
             }
         }
 
+        var fin = Instant.now();
+
         LOGGER.info("Analyse finale: nbUrlAjoute:{}, nbUrlDejaPresent:{}, nbFichierIgnore:{}",
                 analyseFichierTotal.getNbUrlAjoute(), analyseFichierTotal.getNbUrlDejaPresent(),
                 analyseFichierTotal.getNbFichierIgnore());
+
+        statImportTexte.setDuree(Duration.between(debut, fin));
+        statImportTexte.setNbAjout(analyseFichierTotal.getNbUrlAjoute());
+        statImportTexte.setNbDejaPresent(analyseFichierTotal.getNbUrlDejaPresent());
+        statImportTexte.setNbFichierIgnore(analyseFichierTotal.getNbFichierIgnore());
     }
 
     private void analyseFichier(Path fichier, AnalyseFichierTotal analyseFichierTotal) {

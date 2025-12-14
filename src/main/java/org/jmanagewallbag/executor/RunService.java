@@ -5,12 +5,17 @@ import org.jmanagewallbag.service.ComparePocketService;
 import org.jmanagewallbag.service.ExportService;
 import org.jmanagewallbag.service.FirefoxService;
 import org.jmanagewallbag.service.ImportTexteService;
+import org.jmanagewallbag.stat.StatGlobal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Service;
 
 @Service
 public class RunService implements ApplicationRunner {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(RunService.class);
 
     private final ExportService exportService;
     private final ComparePocketService comparePocketService;
@@ -29,19 +34,19 @@ public class RunService implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
+        StatGlobal statGlobal = new StatGlobal();
         if (appProperties.isExportServiceActif()) {
-            exportService.export();
+            exportService.export(statGlobal);
         }
         if (appProperties.isCompareServiceActif()) {
-            comparePocketService.compare();
+            comparePocketService.compare(statGlobal);
         }
         if (appProperties.isImportServiceActif()) {
-            importTexteService.importFichiers();
+            importTexteService.importFichiers(statGlobal);
         }
         if (appProperties.isFirefoxActif()) {
-            //firefoxService.backup();
-            var liste = firefoxService.recupereInfosFirefox();
-            firefoxService.insereBase(liste);
+            firefoxService.backup(statGlobal);
         }
+        LOGGER.info("stat global: {}", statGlobal);
     }
 }

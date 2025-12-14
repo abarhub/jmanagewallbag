@@ -8,6 +8,8 @@ import org.jmanagewallbag.jpa.entity.BookmarkPocket;
 import org.jmanagewallbag.jpa.repository.BookmarkPocketRepository;
 import org.jmanagewallbag.jpa.repository.BookmarkRepository;
 import org.jmanagewallbag.properties.AppProperties;
+import org.jmanagewallbag.stat.StatGlobal;
+import org.jmanagewallbag.stat.StatPocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.format.annotation.DurationFormat;
@@ -47,8 +49,11 @@ public class ComparePocketService {
     }
 
     @Transactional(transactionManager = "transactionManager", rollbackFor = Exception.class)
-    public void compare() {
+    public void compare(StatGlobal statGlobal) {
         LOGGER.info("Comparaison des bookmarks avec Pocket");
+
+        StatPocket statPocket = new StatPocket();
+        statGlobal.setStatPocket(statPocket);
 
         var fichierZip = appProperties.getFichierPocket();
 
@@ -65,7 +70,7 @@ public class ComparePocketService {
                     if (!entry.isDirectory()) {
                         LOGGER.info("entry: {}", entry.getName());
                         if (entry.getName().endsWith(".csv")) {
-                            String contenuFichier = "";
+                            String contenuFichier;
                             try (InputStream inputStream = zipFile.getInputStream(entry)) {
 
 
@@ -95,16 +100,19 @@ public class ComparePocketService {
                                         Instant instant = Instant.ofEpochSecond(Long.parseLong(epochStr));
                                         dateCreation = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
                                     }
+                                    statPocket.setNbUrlTotal(statPocket.getNbUrlTotal() + 1);
 
                                     var bookmarckOpt = bookmarkPocketRepository.findByUrl(url);
                                     if (bookmarckOpt.isPresent()) {
                                         LOGGER.debug("bookmark existe deja: {}", url);
+                                        statPocket.setNbDejaPresent(statPocket.getNbDejaPresent() + 1);
                                     } else {
                                         BookmarkPocket bookmarkPocket = new BookmarkPocket();
                                         bookmarkPocket.setUrl(url);
                                         bookmarkPocket.setTitre(titre);
                                         bookmarkPocket.setDateCreationPocket(dateCreation);
                                         bookmarkPocketRepository.save(bookmarkPocket);
+                                        statPocket.setNbAjout(statPocket.getNbAjout() + 1);
                                     }
                                 }
                             }
@@ -121,6 +129,9 @@ public class ComparePocketService {
 
             var nb = bookmarkPocketRepository.count();
             LOGGER.info("nb bookmarks pocket en base: {}", nb);
+
+            statPocket.setDuree(Duration.between(debut, fin));
+            statPocket.setNbBase(nb);
 
         } else {
             LOGGER.warn("rien à comparer");
