@@ -64,7 +64,8 @@ public class ExportService {
                 .doOnNext(x -> nbUrlTotale.incrementAndGet())
                 .filter(bookmark -> StringUtils.isNotBlank(bookmark.getUrl()))
                 .buffer(appProperties.getBatchInsertSize())
-                .subscribe(listBookmark -> ajouteBookmark(listBookmark, nbAjout, nbModifications));
+                .map(listBookmark -> ajouteBookmark(listBookmark, nbAjout, nbModifications))
+                .blockLast();
 
         var fin = Instant.now();
 
@@ -82,7 +83,7 @@ public class ExportService {
         statExportWallbag.setNbBase(nb);
     }
 
-    private void ajouteBookmark(List<Bookmark> listBookmark, AtomicInteger nbAjout, AtomicInteger nbModifications) {
+    private String ajouteBookmark(List<Bookmark> listBookmark, AtomicInteger nbAjout, AtomicInteger nbModifications) {
 
         var modificationRealise = false;
 
@@ -136,6 +137,7 @@ public class ExportService {
         if (modificationRealise) {
             bookmarkRepository.flush();
         }
+        return "";
     }
 
     private void sendData(FluxSink<Bookmark> sink) {

@@ -69,7 +69,8 @@ public class ComparePocketService {
             Flux.create((FluxSink<String> sink) -> lectureZip(sink, fichierZip, statPocket))
                     .flatMap((contenuFichier) -> lectureCSV(contenuFichier, statPocket))
                     .buffer(appProperties.getBatchPocketInsertSize())
-                    .subscribe(lignePockets -> enregistrementBase(lignePockets, statPocket));
+                    .map(lignePockets -> enregistrementBase(lignePockets, statPocket))
+                    .blockLast();
 
 
             Instant fin = Instant.now();
@@ -161,7 +162,7 @@ public class ComparePocketService {
         return Flux.fromIterable(listeLignes);
     }
 
-    private void enregistrementBase(List<CSVLignePocket> lignePockets, StatPocket statPocket) {
+    private String enregistrementBase(List<CSVLignePocket> lignePockets, StatPocket statPocket) {
         var listeUrl = lignePockets.stream().map(CSVLignePocket::getUrl).toList();
 
         var bookmarckList = bookmarkPocketRepository.findByUrlIn(listeUrl);
@@ -189,6 +190,7 @@ public class ComparePocketService {
         if (!listeBookmarkPocket.isEmpty()) {
             bookmarkPocketRepository.saveAll(listeBookmarkPocket);
         }
+        return "";
     }
 
 
