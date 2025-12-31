@@ -1,6 +1,5 @@
 package org.jmanagewallbag.jpa.repository;
 
-import org.jmanagewallbag.jpa.entity.Bookmark;
 import org.jmanagewallbag.jpa.entity.BookmarkPocket;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
