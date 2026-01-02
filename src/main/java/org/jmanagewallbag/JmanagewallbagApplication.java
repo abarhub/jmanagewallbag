@@ -1,12 +1,9 @@
 package org.jmanagewallbag;
 
 import org.jmanagewallbag.compactage.Compactage;
-import org.jmanagewallbag.batch.properties.AppProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
-@EnableConfigurationProperties(AppProperties.class)
 @SpringBootApplication
 public class JmanagewallbagApplication {
 
