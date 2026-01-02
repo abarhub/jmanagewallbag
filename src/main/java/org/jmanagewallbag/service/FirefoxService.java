@@ -27,6 +27,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class FirefoxService {
@@ -155,7 +156,7 @@ public class FirefoxService {
 
         LOGGER.info("insertion base");
         flux
-                .filter(obj -> obj != null)
+                .filter(Objects::nonNull)
                 .concatMap(obj -> Mono.fromCallable(() -> {
                     transactionTemplateMain.execute(status -> {
                         ajouteBookmark(obj, statFirefox);
@@ -178,7 +179,7 @@ public class FirefoxService {
     private void ajouteBookmark(BookmarkFirefoxDto obj, StatFirefox statFirefox) {
         var bookmarkFirefoxOpt = bookmarkFirefoxRepository.findByUrl(obj.getUrl());
         if (bookmarkFirefoxOpt.isEmpty()) {
-            //LOGGER.info("ajout de l'url: {}", url);
+            LOGGER.info("ajout de l'url: {}", obj.getUrl());
             var bookmarkFirefox = new BookmarkFirefox();
             bookmarkFirefox.setUrl(obj.getUrl());
             bookmarkFirefox.setTitre(obj.getTitle());
