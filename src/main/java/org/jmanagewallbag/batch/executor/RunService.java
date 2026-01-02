@@ -1,0 +1,58 @@
+package org.jmanagewallbag.batch.executor;
+
+import org.jmanagewallbag.batch.properties.AppProperties;
+import org.jmanagewallbag.batch.service.ComparePocketService;
+import org.jmanagewallbag.batch.service.ExportService;
+import org.jmanagewallbag.batch.service.FirefoxService;
+import org.jmanagewallbag.batch.service.ImportTexteService;
+import org.jmanagewallbag.batch.stat.StatGlobal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.time.Instant;
+
+@Service
+public class RunService implements ApplicationRunner {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(RunService.class);
+
+    private final ExportService exportService;
+    private final ComparePocketService comparePocketService;
+    private final ImportTexteService importTexteService;
+    private final AppProperties appProperties;
+    private final FirefoxService firefoxService;
+
+    public RunService(ExportService exportService, ComparePocketService comparePocketService,
+                      ImportTexteService importTexteService, AppProperties appProperties, FirefoxService firefoxService) {
+        this.exportService = exportService;
+        this.comparePocketService = comparePocketService;
+        this.importTexteService = importTexteService;
+        this.appProperties = appProperties;
+        this.firefoxService = firefoxService;
+    }
+
+    @Override
+    public void run(ApplicationArguments args) throws Exception {
+        StatGlobal statGlobal = new StatGlobal();
+        var debut = Instant.now();
+        if (appProperties.isExportServiceActif()) {
+            exportService.export(statGlobal);
+        }
+        if (appProperties.isCompareServiceActif()) {
+            comparePocketService.compare(statGlobal);
+        }
+        if (appProperties.isImportServiceActif()) {
+            importTexteService.importFichiers(statGlobal);
+        }
+        if (appProperties.isFirefoxActif()) {
+            firefoxService.backup(statGlobal);
+        }
+        var fin = Instant.now();
+        statGlobal.setDuree(Duration.between(debut, fin));
+        LOGGER.info("stat global: {}", statGlobal);
+    }
+}

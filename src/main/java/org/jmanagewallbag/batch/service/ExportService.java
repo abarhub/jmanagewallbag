@@ -1,0 +1,223 @@
+package org.jmanagewallbag.batch.service;
+
+import org.apache.commons.lang3.StringUtils;
+import org.jmanagewallbag.batch.jpa.entity.Bookmark;
+import org.jmanagewallbag.batch.jpa.repository.BookmarkRepository;
+import org.jmanagewallbag.batch.properties.AppProperties;
+import org.jmanagewallbag.batch.stat.StatExportWallbag;
+import org.jmanagewallbag.batch.stat.StatGlobal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.format.annotation.DurationFormat;
+import org.springframework.format.datetime.standard.DurationFormatter;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
+import tools.jackson.databind.JsonNode;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.atomic.AtomicInteger;
+
+@Service
+public class ExportService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ExportService.class);
+
+    private final AppProperties appProperties;
+
+    private final OAuthService oAuthService;
+
+    private final BookmarkRepository bookmarkRepository;
+
+    public ExportService(AppProperties appProperties, OAuthService oAuthService, BookmarkRepository bookmarkRepository) {
+        this.appProperties = appProperties;
+        this.oAuthService = oAuthService;
+        this.bookmarkRepository = bookmarkRepository;
+    }
+
+    @Transactional(transactionManager = "transactionManager", rollbackFor = Exception.class)
+    public void export(StatGlobal statGlobal) {
+        export3(statGlobal);
+    }
+
+    public void export3(StatGlobal statGlobal) {
+
+        StatExportWallbag statExportWallbag = new StatExportWallbag();
+        statGlobal.setExportWallbag(statExportWallbag);
+
+        AtomicInteger nbAjout = new AtomicInteger(0);
+        AtomicInteger nbModifications = new AtomicInteger(0);
+        AtomicInteger nbUrlTotale = new AtomicInteger(0);
+
+        var debut = Instant.now();
+
+        LOGGER.info("page size: {}", appProperties.getPageSize());
+        LOGGER.info("batch insert size: {}", appProperties.getBatchInsertSize());
+
+        Flux.create(this::sendData)
+                .doOnNext(x -> nbUrlTotale.incrementAndGet())
+                .filter(bookmark -> StringUtils.isNotBlank(bookmark.getUrl()))
+                .buffer(appProperties.getBatchInsertSize())
+                .map(listBookmark -> ajouteBookmark(listBookmark, nbAjout, nbModifications))
+                .blockLast();
+
+        var fin = Instant.now();
+
+        LOGGER.info("duree: {} ({})", Duration.between(debut, fin), new DurationFormatter(DurationFormat.Style.COMPOSITE).print(Duration.between(debut, fin), Locale.FRANCE));
+        LOGGER.info("nb ajout: {}", nbAjout);
+        LOGGER.info("nb modifications: {}", nbModifications);
+        LOGGER.info("nb url totale: {}", nbUrlTotale);
+
+        var nb = bookmarkRepository.count();
+        LOGGER.info("nb bookmarks en base: {}", nb);
+        statExportWallbag.setDuree(Duration.between(debut, fin));
+        statExportWallbag.setNbAjout(nbAjout.get());
+        statExportWallbag.setNbModification(nbModifications.get());
+        statExportWallbag.setNbTotal(nbUrlTotale.get());
+        statExportWallbag.setNbBase(nb);
+    }
+
+    private String ajouteBookmark(List<Bookmark> listBookmark, AtomicInteger nbAjout, AtomicInteger nbModifications) {
+
+        var modificationRealise = false;
+
+        // suppression des doublons d'url
+        List<Bookmark> listBookmark2 = new ArrayList<>();
+        for (Bookmark bookmark : listBookmark) {
+            if (listBookmark2.stream().noneMatch(b -> b.getUrl().equals(bookmark.getUrl()))) {
+                listBookmark2.add(bookmark);
+            }
+        }
+
+        var listeDejaPresent = bookmarkRepository.findByUrlIn(listBookmark2.stream().map(Bookmark::getUrl).toList());
+
+        List<Bookmark> listeMaj = new ArrayList<>();
+        List<Bookmark> listeMaj2 = new ArrayList<>();
+        List<Bookmark> listeMaj3 = new ArrayList<>();
+        List<Bookmark> listeAjout = new ArrayList<>();
+        for (Bookmark bookmark : listBookmark2) {
+            var bookmarkOpt = listeDejaPresent.stream()
+                    .filter(b -> b.getUrl().equals(bookmark.getUrl()))
+                    .findFirst();
+            if (bookmarkOpt.isPresent()) {
+                listeMaj.add(bookmark);
+                listeMaj2.add(bookmarkOpt.get());
+            } else {
+                listeAjout.add(bookmark);
+            }
+        }
+
+        if (!listeAjout.isEmpty()) {
+            nbAjout.addAndGet(listeMaj.size());
+            bookmarkRepository.saveAll(listeAjout);
+            modificationRealise = true;
+        }
+
+        for (int i = 0; i < listeMaj.size(); i++) {
+            var bookmark = listeMaj.get(i);
+            if (StringUtils.isNotBlank(bookmark.getTitre()) &&
+                    !bookmark.getTitre().equals(listeMaj2.get(i).getTitre())) {
+                Bookmark bookmark2 = listeMaj2.get(i);
+                bookmark2.setTitre(listeMaj.get(i).getTitre());
+                listeMaj3.add(bookmark2);
+            }
+        }
+        if (!listeMaj3.isEmpty()) {
+            nbModifications.addAndGet(listeMaj3.size());
+            bookmarkRepository.saveAll(listeMaj3);
+            modificationRealise = true;
+        }
+
+        if (modificationRealise) {
+            bookmarkRepository.flush();
+        }
+        return "";
+    }
+
+    private void sendData(FluxSink<Bookmark> sink) {
+        int no = 1;
+        int nbPages;
+        int max = 1;
+
+        for (int i = 0; i < max; i++) {
+            LOGGER.info("page {}", no + i);
+            var resOpt = oAuthService.getEntries(no + i, appProperties.getPageSize());
+
+            if (resOpt.isEmpty()) {
+                break;
+            }
+            var res = resOpt.get();
+            if (i == 0) {
+                nbPages = res.get("pages").asInt();
+                max = nbPages;
+            }
+
+            if (res.has("_embedded")) {
+                var embedded = res.get("_embedded");
+                if (embedded.has("items")) {
+                    var items = embedded.get("items");
+                    if (items.isArray() && !items.isEmpty()) {
+                        for (var item : items) {
+
+                            if (item.has("url")) {
+                                var url = item.get("url").asString();
+
+                                String titre = null;
+                                if (item.has("title")) {
+                                    titre = item.get("title").asString();
+                                }
+
+                                LocalDateTime dateCreation = null;
+                                LocalDateTime dateModification = null;
+                                if (item.has("created_at")) {
+                                    var date = getDate(item, "created_at");
+                                    dateCreation = date;
+                                }
+                                if (item.has("updated_at")) {
+                                    var date = getDate(item, "updated_at");
+                                    dateModification = date;
+                                }
+
+                                if (item.has("tag") && item.get("tag").isArray() && !item.get("tag").isEmpty()) {
+                                    var tag = item.get("tag").asString();
+                                    LOGGER.info("tag: {} ({})", tag, url);
+                                }
+
+                                Bookmark bookmark = new Bookmark();
+                                bookmark.setUrl(url);
+                                bookmark.setTitre(titre);
+                                bookmark.setDateCreationWallbag(dateCreation);
+                                bookmark.setDateModificationWallbag(dateModification);
+                                sink.next(bookmark);
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+
+        }
+
+        sink.complete();
+    }
+
+    private LocalDateTime getDate(JsonNode item, String nomChamps) {
+        var s0 = item.get(nomChamps).asString();
+        var s = s0.substring(0, 19);
+        var res = LocalDateTime.parse(s);
+        LOGGER.debug("date: {} ({})", res, s0);
+        return res;
+    }
+
+}
